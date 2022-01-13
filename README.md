@@ -1,1 +1,2 @@
 # Recommendations-to-Minimize-Hotel-Cancellations
+In this project, data cleaning was done on real-life hotel data set containing almost 41,000 records to filter out any null values and make it ready for visualization and predictive modeling. Then patterns and correlations were discovered between 21 variables in the data set. Then predictive modeling was applied to predict if a customer would cancel a reservation or not using various predictive algorithmic models like Linear Regression, Support Vector Machine, Apriori, and Decision Tree with an accuracy of 81%.
