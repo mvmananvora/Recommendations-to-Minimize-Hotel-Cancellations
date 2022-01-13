@@ -1,0 +1,125 @@
+---
+title: "Final Project"
+author: "Yash Shimpi"
+date: "05/12/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Reading the file
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+hotel_data <- read_csv("https://intro-datascience.s3.us-east-2.amazonaws.com/Resort01.csv")
+```
+
+```{r pressure, echo=FALSE}
+str(hotel_data)
+summary(hotel_data$IsRepeatedGuest)
+```
+
+
+Data Cleaning - Converting chr variables into factors
+
+```{r}
+hotel_data$IsCanceled <- as.factor(hotel_data$IsCanceled)
+hotel_data$IsCanceled <- as.numeric(hotel_data$IsCanceled)
+hotel_data$CustomerType <- as.factor(hotel_data$CustomerType)
+hotel_data$DepositType <- as.factor(hotel_data$DepositType)
+hotel_data$MarketSegment <- as.factor(hotel_data$MarketSegment)
+hotel_data$Meal <- as.factor(hotel_data$Meal)
+hotel_data$IsRepeatedGuest <- as.factor(hotel_data$IsRepeatedGuest)
+hotel_data$ReservedRoomType <- as.factor(hotel_data$ReservedRoomType)
+hotel_data$AssignedRoomType <- as.factor(hotel_data$AssignedRoomType)
+```
+
+```{r}
+table(hotel_data$IsCanceled)
+```
+
+
+Separating data into cancelled and not cancelled type
+
+```{r}
+hotel_data_cancelled <- hotel_data %>% filter(IsCanceled == 1)
+hotel_data_not_cancelled <- hotel_data %>% filter(IsCanceled == 0)
+```
+
+
+Exploratory Analysis of Canceled dataframe
+
+```{r}
+boxplot(LeadTime~IsCanceled,data=hotel_data, 
+        col=(c("blue","red")),
+        ylab="Lead Time", xlab="Cancelled or not")
+
+ggplot(hotel_data, aes(x=as.factor(IsCanceled), y=LeadTime)) + 
+    geom_boxplot(fill="slateblue", alpha=0.2) +
+    xlab("Not Cancelled or Cancelled") 
+
+ggplot(hotel_data, aes(x=as.factor(IsCanceled), y=StaysInWeekNights)) + 
+    geom_boxplot(fill="slateblue", alpha=0.2) +
+    xlab("Not Cancelled or Cancelled")
+```
+
+
+```{r}
+hist(hotel_data$StaysInWeekNights,
+     col='skyblue3',
+     main = paste("Histogram of" , "Stays in Week Nights"),
+     xlab = "Stays in Week Nights")
+```
+
+
+```{r}
+hist(hotel_data_cancelled$StaysInWeekNights,
+     col='skyblue3',
+     main = paste("Histogram of" , "Stays in Week Nights", "For Cancelled Data"),
+     xlab = "Stays in Week Nights")
+```
+
+Linear Model
+
+```{r}
+lmOut <- lm(IsCanceled ~ ., data = hotel_data)
+summary(lmOut)
+
+
+hotel_data_n = hotel_data[,c('IsCanceled','LeadTime','StaysInWeekendNights','StaysInWeekNights','Adults',
+                             'Children','Babies','IsRepeatedGuest','PreviousCancellations',
+                             'PreviousBookingsNotCanceled','BookingChanges','RequiredCarParkingSpaces',
+                             'TotalOfSpecialRequests')]
+lmOut1 <- lm(IsCanceled ~ ., data = hotel_data_n)
+summary(lmOut1)
+
+
+hotel_data_c = hotel_data[,c('IsCanceled','Meal','Country','MarketSegment','DepositType',
+                             'CustomerType')]
+
+lmOut2 <- lm(IsCanceled ~ ., data = hotel_data_c)
+summary(lmOut2)
+```
+
+
+SVM 
+
+```{r}
+
+library(kernlab);library(caret)
+
+hotel_data$IsCanceled <- as.factor(hotel_data$IsCanceled)
+trainList <- createDataPartition(y=hotel_data$IsCanceled,p=0.7,list=FALSE)
+trainSet <- hotel_data[trainList,]
+testSet <- hotel_data[-trainList,]
+
+svmModel <- train(IsCanceled ~ ., data=trainSet, method='svmRadial')
+svmPred <- predict(svmModel, newdata=testSet)
+
+confusion <- confusionMatrix(svmPred, testSet$IsCanceled)
+confusion
+
+```

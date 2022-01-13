@@ -1,0 +1,161 @@
+Import libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(arules)
+library(arulesViz)
+library(kernlab)
+library(caret)
+```
+
+Import Dataset
+```{r}
+db <- read_csv('https://intro-datascience.s3.us-east-2.amazonaws.com/Resort01.csv')
+```
+
+Statistically examine data using summary
+```{r}
+summary(db)
+```
+
+str()/glimpse() to check for data redundancies
+```{r}
+glimpse(db)
+```
+Convert non-numeric to factor in the copy of the db
+```{r}
+db_c <- db
+db_c$IsCanceled <- as.factor(db_c$IsCanceled)
+db_c$Meal <- as.factor(db_c$Meal)
+db_c$Country <- as.factor(db_c$Country)
+db_c$MarketSegment <- as.factor(db_c$MarketSegment)
+db_c$IsRepeatedGuest <- as.factor(db_c$IsRepeatedGuest)
+db_c$ReservedRoomType <- as.factor(db_c$ReservedRoomType)
+db_c$AssignedRoomType <- as.factor(db_c$AssignedRoomType)
+db_c$DepositType <- as.factor(db_c$DepositType)
+db_c$CustomerType <- as.factor(db_c$CustomerType)
+str(db_c)
+```
+Check for outliers in data
+```{r}
+bplt <- ggplot(db)+ aes(x=IsCanceled)
+bplt1 <- bplt+aes(y = LeadTime, group = IsCanceled) + geom_boxplot()
+bplt1
+bplt2 <- bplt + aes(y = PreviousCancellations, group = IsCanceled) + geom_boxplot()
+bplt2
+bplt3 <- bplt + aes(y = PreviousBookingsNotCanceled, group = IsCanceled) + geom_boxplot()
+bplt3
+bplt4 <- bplt + aes(y = BookingChanges, group = IsCanceled) + geom_boxplot()
+bplt4
+bplt5 <- bplt + aes(y = TotalOfSpecialRequests, group = IsCanceled) + geom_boxplot()
+bplt5
+bplt6 <- bplt + aes(y = StaysInWeekendNights, group = IsCanceled) + geom_boxplot()
+bplt6
+bplt7 <- bplt + aes(y = StaysInWeekNights, group = IsCanceled) + geom_boxplot()
+bplt7
+bplt8 <- bplt + aes(y = RequiredCarParkingSpaces, group = IsCanceled) + geom_boxplot()
+bplt8
+bplt9 <- bplt + aes(y = Adults, group = IsCanceled) + geom_boxplot()
+bplt9
+```
+
+Scatter plots to see linear relations or others
+```{r}
+cplt <- ggplot(db) + aes(x = IsCanceled)
+cplt1 <- cplt + aes(y = IsRepeatedGuest) + geom_count()
+cplt1
+cplt2 <- cplt + aes(y = Meal) + geom_count()
+cplt2
+cplt3 <- cplt + aes(y = MarketSegment) + geom_count()
+cplt3
+cplt4 <- cplt + aes(y = CustomerType) + geom_count()
+cplt4
+
+catDB <- as(db_c[,c("IsCanceled", "Meal", "MarketSegment", "IsRepeatedGuest", "DepositType", "CustomerType")], "transactions")
+ctab <- crossTable(catDB, sort = TRUE)
+ctCan <- ctab[,c("IsCanceled=0", "IsCanceled=1")]
+ctCan
+```
+Using crosstab data
+```{r}
+ctCanDF <- data.frame(ctCan)
+ctCanDF$total <- ctCanDF$IsCanceled.0 + ctCanDF$IsCanceled.1
+ctCanDF$IsCanceled.0 <- ctCanDF$IsCanceled.0*100/ctCanDF$total
+ctCanDF$IsCanceled.1 <- ctCanDF$IsCanceled.1*100/ctCanDF$total
+ctCanDF$total <- ctCanDF$total*100/40060
+```
+Tidying crosstable data
+```{r}
+ctDF <- t(ctCanDF[,c("IsCanceled.1", "IsCanceled.0")])
+row.names(ctDF)[row.names(ctDF) == "IsCanceled.1"] <- "IsCanceled"
+row.names(ctDF)[row.names(ctDF) == "IsCanceled.0"] <- "IsNotCanceled"
+n <- c("NotARepeatGuest", "NoDeposit", "TransientCustomer", "Bed&Breakfast", "NotCanceled", "OnlineTA", "Canceled", "Halfboard", "TransientParty", "OfflineTATO", "DirectMarketSeg", "GroupMarketSeg", "CorporateMarketSeg", "RepeatGuest", "ContractCustomer", "NoRefundDeposit", "UnknownMeal", "Fullboard", "GroupCustomer", "ComplementaryMarketSeg", "RefundableDeposit", "NoMeal")
+colnames(ctDF) <- n
+ctDF <- round(subset(ctDF, select=-c(Canceled, NotCanceled)), digits=2)
+```
+
+Subsetting and barplots
+```{r}
+brplt1 <- barplot(ctDF[,c("NotARepeatGuest", "RepeatGuest")],beside =TRUE, ylab = "% of total people", ylim = c(0,110.00))
+text(brplt1, y = ctDF[,c("NotARepeatGuest", "RepeatGuest")],
+     label = array(ctDF[,c("NotARepeatGuest", "RepeatGuest")]),pos = 3,cex = 0.8)
+
+brplt2 <- barplot(ctDF[,c("NoDeposit", "NoRefundDeposit", "RefundableDeposit")],beside =TRUE, ylab = "% of total people", ylim = c(0,110.00))
+text(brplt2, y = ctDF[,c("NoDeposit", "NoRefundDeposit", "RefundableDeposit")],
+     label = array(ctDF[,c("NoDeposit", "NoRefundDeposit", "RefundableDeposit")]),pos = 3,cex = 0.8)
+
+brplt3 <- barplot(ctDF[,c("TransientCustomer", "TransientParty", "ContractCustomer", "GroupCustomer")]
+                  ,beside =TRUE, ylab = "% of total people", ylim = c(0,110.00))
+text(brplt3, y = ctDF[,c("TransientCustomer", "TransientParty", "ContractCustomer", "GroupCustomer")],
+     label = array(ctDF[,c("TransientCustomer", "TransientParty", "ContractCustomer", "GroupCustomer")]),pos = 3,cex = 0.8)
+
+brplt4 <- barplot(ctDF[,c("OnlineTA", "OfflineTATO", "DirectMarketSeg", "GroupMarketSeg", "CorporateMarketSeg", "ComplementaryMarketSeg")], names.arg=c("Online TA", "Offline", "Direct", "Group", "Corporate", "Compl"), beside =TRUE, ylab = "% of total people", ylim = c(0,110.00))
+text(brplt4, y = ctDF[,c("OnlineTA", "OfflineTATO", "DirectMarketSeg", "GroupMarketSeg", "CorporateMarketSeg", "ComplementaryMarketSeg")],
+     label = array(ctDF[,c("OnlineTA", "OfflineTATO", "DirectMarketSeg", "GroupMarketSeg", "CorporateMarketSeg", "ComplementaryMarketSeg")]),pos = 3,cex = 0.8)
+
+brplt5 <- barplot(ctDF[,c("Bed&Breakfast", "Halfboard", "Fullboard", "UnknownMeal", "NoMeal")]
+                  ,beside =TRUE, ylab = "% of total people", ylim = c(0,110.00))
+text(brplt5, y = ctDF[,c("Bed&Breakfast", "Halfboard", "Fullboard", "UnknownMeal", "NoMeal")],
+     label = array(ctDF[,c("Bed&Breakfast", "Halfboard", "Fullboard", "UnknownMeal", "NoMeal")]),pos = 3,cex = 0.8)
+
+```
+
+Checking if the reserved and assigned rooms make any difference to the cancellation.
+```{r}
+# Most cancelled type of assigned room
+tbl1 <- table(db_c[,c("AssignedRoomType", "IsCanceled")])
+tbl1
+# Most cancelled type of room reserved by the customers
+table(db_c[,c("ReservedRoomType", "IsCanceled")])
+
+# Making boolean column wherein reserved rooms and assigned rooms are compared.
+db_c$CompareReserveAssign <- db$ReservedRoomType==db$AssignedRoomType
+
+# Checking if the reserved room and assigned room make any difference on cancellation behavior
+table(db_c[,c("CompareReserveAssign", "IsCanceled")])
+```
+
+```{r}
+arm_catDB <- db_c[,c("IsCanceled", "Meal", "MarketSegment", "IsRepeatedGuest", "DepositType", "CustomerType", "AssignedRoomType", "ReservedRoomType")]
+rules <- apriori(arm_catDB,
+                  parameter = list(supp=0.005, conf=0.98, minlen=6),
+                  appearance = list(default="lhs", rhs=("IsCanceled=1")),
+                  control = list(verbose=F))
+inspectDT(rules)
+```
+
+
+check if one assigned room changes the outcome when it is different than the reserved one
+```{r}
+inspectDT(apriori(db_c, 
+                parameter = list(conf=0.000025, minlen=2, supp=0.00005),
+                  appearance = list(default="lhs", rhs=("IsCanceled=1")),
+                  control = list(verbose=F)))
+```
+
+```{r}
+scplt <- ggplot(db)
+scplt1 <- scplt+ aes(x = Adults, y = RequiredCarParkingSpaces) + geom_point()
+scplt1
+```
+
